@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar"
 import { locations } from "@/data/locations"
 import { haversineDistance } from "@/lib/distance"
 import Footer from "./Footer"
+import WholesaleForm from "./WholesaleForm"
 
 type UserLocation = {
   lat: number
@@ -91,6 +92,9 @@ export default function HomeClient() {
           <Map userLocation={userLocation} onLocate={requestUserLocation} />
         </div>
       </section>
+
+      <WholesaleForm />
+    
 
       <Footer />
 
