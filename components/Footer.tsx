@@ -1,5 +1,6 @@
-import { Phone, Mail, Smartphone, Instagram, Music, Ticket } from "lucide-react"
+import { Phone, Mail,  Smartphone, Instagram, Music, Ticket } from "lucide-react"
 import Image from "next/image"
+import { FaInstagram, FaTiktok, FaWhatsapp } from "react-icons/fa6"
 
 export default function Footer() {
   return (
@@ -34,7 +35,7 @@ export default function Footer() {
               rel="noopener noreferrer"
               className="w-12 h-12 rounded-xl border border-[#E9DED6] flex items-center justify-center bg-white hover:bg-[#EB8A3C] hover:text-white transition"
             >
-              <Ticket size={20} />
+             <FaTiktok size={20} />
             </a>
 
             <a
@@ -43,7 +44,7 @@ export default function Footer() {
               rel="noopener noreferrer"
               className="w-12 h-12 rounded-xl border border-[#E9DED6] flex items-center justify-center bg-white hover:bg-[#EB8A3C] hover:text-white transition"
             >
-              <Instagram size={20} />
+              <FaInstagram size={20} />
             </a>
 
           </div>
@@ -59,20 +60,13 @@ export default function Footer() {
 
           <div className="space-y-5 text-lg text-[#5C3A28]">
 
-            <div className="flex items-center justify-start gap-4">
-             
-
-              <div className="w-12 h-12 rounded-xl border border-[#E9DED6] flex items-center justify-center bg-white">
-                <Phone size={20} />
-              </div>
-                <span dir="ltr">+966505988896</span>
-            </div>
+           
 
             <div className="flex items-center justify-start gap-4">
               
 
               <div className="w-12 h-12 rounded-xl border border-[#E9DED6] flex items-center justify-center bg-white">
-                <Smartphone size={20} />
+               <FaWhatsapp size={22} />
               </div>
               <span dir="ltr">+966505988896</span>
             </div>

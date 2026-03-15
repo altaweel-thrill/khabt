@@ -34,7 +34,7 @@ export default function WholesaleForm() {
   };
 
   return (
-    <section className="bg-white py-16">
+    <section className="bg-white py-16" id="contact">
       <div className="mx-auto max-w-4xl px-6">
         <div className="rounded-3xl border border-[#E9DED6] bg-[#F7F4F1] p-8 shadow-sm md:p-10">
           <div className="mb-8 text-right">

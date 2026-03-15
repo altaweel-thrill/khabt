@@ -33,12 +33,12 @@ export default function Hero({ onLocate, nearestLocation }: HeroProps) {
           </p>
 
           <div className="mt-8 flex flex-wrap gap-4">
-            <button
-              onClick={onLocate}
+            <a
+                href="#contact"
               className="rounded-2xl bg-[#EB8A3C] px-6 py-3 font-semibold text-white shadow-md transition hover:opacity-90"
             >
-              حدد موقعي الآن
-            </button>
+             مبيعات الجملة
+            </a>
 
             <a
               href="#map"
