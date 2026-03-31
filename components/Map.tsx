@@ -41,6 +41,9 @@ export default function Map({ userLocation, onLocate }: MapProps) {
   const [selectedLocation, setSelectedLocation] = useState<LocationItem | null>(null)
   const [loadingBranches, setLoadingBranches] = useState(true)
 
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
   useEffect(() => {
     const fetchBranches = async () => {
       try {
@@ -114,6 +117,18 @@ export default function Map({ userLocation, onLocate }: MapProps) {
       return distanceA - distanceB
     })
   }, [userLocation, locations])
+
+  const totalPages = Math.ceil(sortedLocations.length / itemsPerPage)
+
+  const paginatedLocations = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return sortedLocations.slice(startIndex, endIndex)
+  }, [sortedLocations, currentPage])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [userLocation, locations.length])
 
   const mapCenter = userLocation || defaultCenter
 
@@ -200,62 +215,100 @@ export default function Map({ userLocation, onLocate }: MapProps) {
         ) : sortedLocations.length === 0 ? (
           <p className="text-right text-sm text-gray-500">لا توجد فروع حالياً</p>
         ) : (
-          <div className="space-y-3">
-            {sortedLocations.map((location) => {
-              const distance = userLocation
-                ? haversineDistance(userLocation, {
-                    lat: location.lat,
-                    lng: location.lng,
-                  })
-                : null
+          <>
+            <div className="space-y-3">
+              {paginatedLocations.map((location) => {
+                const distance = userLocation
+                  ? haversineDistance(userLocation, {
+                      lat: location.lat,
+                      lng: location.lng,
+                    })
+                  : null
 
-              const isNearest = nearestLocation?.id === location.id
+                const isNearest = nearestLocation?.id === location.id
 
-              return (
-                <div
-                  key={location.id}
-                  className={`rounded-xl border p-4 ${
-                    isNearest
-                      ? "border-[#EB8A3C] bg-[#FFF7F1]"
-                      : "border-gray-200 bg-white"
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-right">
-                      <h4 className="font-bold text-[#5C3A28]">{location.name}</h4>
-                      <p className="text-sm text-gray-600">
-                        {location.address || location.city || "بدون عنوان"}
-                      </p>
-
-                      {distance !== null && (
-                        <p className="mt-1 text-sm font-medium text-[#EB8A3C]">
-                          {distance.toFixed(2)} كم
+                return (
+                  <div
+                    key={location.id}
+                    className={`rounded-xl border p-4 ${
+                      isNearest
+                        ? "border-[#EB8A3C] bg-[#FFF7F1]"
+                        : "border-gray-200 bg-white"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="text-right">
+                        <h4 className="font-bold text-[#5C3A28]">{location.name}</h4>
+                        <p className="text-sm text-gray-600">
+                          {location.city || location.city || "بدون عنوان"}
                         </p>
-                      )}
-                    </div>
 
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setSelectedLocation(location)}
-                        className="rounded-lg border border-[#8B5A3C] px-3 py-2 text-[#8B5A3C]"
-                      >
-                        عرض
-                      </button>
+                        {distance !== null && (
+                          <p className="mt-1 text-sm font-medium text-[#EB8A3C]">
+                            {distance.toFixed(2)} كم
+                          </p>
+                        )}
+                      </div>
 
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-lg bg-[#EB8A3C] px-3 py-2 text-white"
-                      >
-                        الاتجاهات
-                      </a>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSelectedLocation(location)}
+                          className="rounded-lg border border-[#8B5A3C] px-3 py-2 text-[#8B5A3C]"
+                        >
+                          عرض
+                        </button>
+
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-lg bg-[#EB8A3C] px-3 py-2 text-white"
+                        >
+                          الاتجاهات
+                        </a>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((prev) => prev - 1)}
+                  disabled={currentPage === 1}
+                  className="rounded-lg border border-[#d9c9bd] px-4 py-2 text-sm text-[#5C3A28] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  السابق
+                </button>
+
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`rounded-lg px-4 py-2 text-sm ${
+                        currentPage === page
+                          ? "bg-[#EB8A3C] text-white"
+                          : "border border-[#d9c9bd] text-[#5C3A28]"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+
+                <button
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
+                  disabled={currentPage === totalPages}
+                  className="rounded-lg border border-[#d9c9bd] px-4 py-2 text-sm text-[#5C3A28] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  التالي
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
