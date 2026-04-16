@@ -11,10 +11,12 @@ import {
   query,
   updateDoc,
 } from "firebase/firestore";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 
 import { db } from "@/lib/firebase";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import PlaceSearch from "@/components/PlaceSearch";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,7 +65,24 @@ const initialFormState: FormState = {
   lng: "",
 };
 
+const mapContainerStyle = {
+  width: "100%",
+  height: "320px",
+};
+
+const defaultCenter = {
+  lat: 26.4207,
+  lng: 50.0888,
+};
+
+const libraries = ["places"] as const;
+
 export default function BranchesPage() {
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
+   
+  });
+
   const [branches, setBranches] = useState<Branch[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -74,6 +93,11 @@ export default function BranchesPage() {
   const [form, setForm] = useState<FormState>(initialFormState);
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [pickerPosition, setPickerPosition] =
+    useState<google.maps.LatLngLiteral | null>(null);
+  const [mapCenter, setMapCenter] =
+    useState<google.maps.LatLngLiteral>(defaultCenter);
 
   const fetchBranches = async () => {
     try {
@@ -123,6 +147,83 @@ export default function BranchesPage() {
   const resetForm = () => {
     setForm(initialFormState);
     setEditingBranch(null);
+    setPickerPosition(null);
+    setMapCenter(defaultCenter);
+  };
+
+  const fillAddressFromLatLng = async (lat: number, lng: number) => {
+    if (!window.google?.maps) return;
+
+    try {
+      const geocoder = new window.google.maps.Geocoder();
+
+      const response = await geocoder.geocode({
+        location: { lat, lng },
+      });
+
+      const result = response.results?.[0];
+
+      let city = "";
+      const address = result?.formatted_address || "";
+
+      if (result?.address_components) {
+        for (const component of result.address_components) {
+          if (
+            component.types.includes("locality") ||
+            component.types.includes("administrative_area_level_2") ||
+            component.types.includes("administrative_area_level_1")
+          ) {
+            city = component.long_name;
+            break;
+          }
+        }
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        lat: lat.toString(),
+        lng: lng.toString(),
+        address,
+        city: city || prev.city,
+      }));
+    } catch (error) {
+      console.error("Reverse geocoding failed:", error);
+      setForm((prev) => ({
+        ...prev,
+        lat: lat.toString(),
+        lng: lng.toString(),
+      }));
+    }
+  };
+
+  const handleMapClick = async (e: google.maps.MapMouseEvent) => {
+    if (!e.latLng) return;
+
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+
+    setPickerPosition({ lat, lng });
+    setMapCenter({ lat, lng });
+
+    await fillAddressFromLatLng(lat, lng);
+  };
+
+  const handlePlaceSelect = async (data: {
+    lat: number;
+    lng: number;
+    address: string;
+    city: string;
+  }) => {
+    setPickerPosition({ lat: data.lat, lng: data.lng });
+    setMapCenter({ lat: data.lat, lng: data.lng });
+
+    setForm((prev) => ({
+      ...prev,
+      lat: data.lat.toString(),
+      lng: data.lng.toString(),
+      address: data.address || prev.address,
+      city: data.city || prev.city,
+    }));
   };
 
   const handleAddBranch = async () => {
@@ -158,6 +259,8 @@ export default function BranchesPage() {
       lat: String(branch.lat ?? ""),
       lng: String(branch.lng ?? ""),
     });
+    setPickerPosition({ lat: branch.lat, lng: branch.lng });
+    setMapCenter({ lat: branch.lat, lng: branch.lng });
     setOpenEditDialog(true);
   };
 
@@ -235,7 +338,7 @@ export default function BranchesPage() {
                   </Button>
                 </DialogTrigger>
 
-                <DialogContent dir="rtl" className="sm:max-w-[560px]">
+                <DialogContent dir="rtl" className="sm:max-w-[720px]">
                   <DialogHeader>
                     <DialogTitle className="text-right">إضافة فرع جديد</DialogTitle>
                   </DialogHeader>
@@ -253,17 +356,14 @@ export default function BranchesPage() {
                       />
                     </div>
 
-                    <div className="grid gap-2">
-                      <label className="text-right text-sm font-medium">
-                        المدينة
-                      </label>
-                      <Input
-                        value={form.city}
-                        onChange={(e) => handleChange("city", e.target.value)}
-                        placeholder="مثال: الدمام"
-                        className="text-right"
-                      />
-                    </div>
+                    {isLoaded && (
+                      <div className="grid gap-2">
+                        <label className="text-right text-sm font-medium">
+                          البحث في الخريطة
+                        </label>
+                        <PlaceSearch onSelect={handlePlaceSelect} />
+                      </div>
+                    )}
 
                     <div className="grid gap-2">
                       <label className="text-right text-sm font-medium">
@@ -273,6 +373,18 @@ export default function BranchesPage() {
                         value={form.address}
                         onChange={(e) => handleChange("address", e.target.value)}
                         placeholder="العنوان الكامل"
+                        className="text-right"
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <label className="text-right text-sm font-medium">
+                        المدينة
+                      </label>
+                      <Input
+                        value={form.city}
+                        onChange={(e) => handleChange("city", e.target.value)}
+                        placeholder="مثال: الدمام"
                         className="text-right"
                       />
                     </div>
@@ -302,6 +414,32 @@ export default function BranchesPage() {
                         />
                       </div>
                     </div>
+
+                    {isLoaded && (
+                      <div className="grid gap-2">
+                        <label className="text-right text-sm font-medium">
+                          اختر الموقع من الخريطة
+                        </label>
+
+                        <GoogleMap
+                          mapContainerStyle={mapContainerStyle}
+                          center={pickerPosition || mapCenter}
+                          zoom={pickerPosition ? 14 : 10}
+                          onClick={handleMapClick}
+                          options={{
+                            streetViewControl: false,
+                            mapTypeControl: false,
+                            fullscreenControl: false,
+                          }}
+                        >
+                          {pickerPosition && <Marker position={pickerPosition} />}
+                        </GoogleMap>
+
+                        <p className="text-right text-xs text-muted-foreground">
+                          اضغط على أي نقطة في الخريطة ليتم تعبئة الإحداثيات والعنوان والمدينة تلقائياً
+                        </p>
+                      </div>
+                    )}
 
                     <div className="flex justify-end gap-2 pt-2">
                       <Button
