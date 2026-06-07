@@ -1,4 +1,4 @@
-import { Phone, Mail,  Smartphone, Instagram, Music, Ticket } from "lucide-react"
+import { Phone, Mail,  Smartphone, Instagram, Music, Ticket, Store } from "lucide-react"
 import Image from "next/image"
 import { FaInstagram, FaTiktok, FaWhatsapp } from "react-icons/fa6"
 
@@ -79,6 +79,18 @@ export default function Footer() {
                 <Mail size={20} />
               </div>
                <span>info@khabt-tea.com</span>
+            </div>
+
+             <div className="flex items-center justify-start gap-4">
+             
+
+              <div className="w-12 h-12 rounded-xl border border-[#E9DED6] flex items-center justify-center bg-white">
+                <Store size={20} />
+              </div>
+              
+                 <a href="https://khabt-tea.com/" target="_blank" rel="noreferrer" className="text-sm font-medium text-[#5C3A28] transition hover:text-[#EB8A3C]">
+           <span>المتجر الإلكتروني</span>
+          </a>
             </div>
 
           </div>

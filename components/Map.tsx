@@ -158,7 +158,7 @@ export default function Map({ userLocation, onLocate }: MapProps) {
             position={{ lat: location.lat, lng: location.lng }}
             onClick={() => setSelectedLocation(location)}
             icon={{
-              url: "/khabt-marker.jpeg",
+              url: "/logo-marker.png",
               scaledSize: new window.google.maps.Size(30, 30),
               anchor: new window.google.maps.Point(15, 15),
             }}

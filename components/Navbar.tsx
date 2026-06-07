@@ -26,6 +26,9 @@ export default function Navbar({ onLocate }: NavbarProps) {
           <a href="#map" className="text-sm font-medium text-[#5C3A28] transition hover:text-[#EB8A3C]">
             الخريطة
           </a>
+             <a href="https://khabt-tea.com/" target="_blank" rel="noreferrer" className="text-sm font-medium text-[#5C3A28] transition hover:text-[#EB8A3C]">
+            المتجر الالكتروني 
+          </a>
           <a href="#contact" className="text-sm font-medium text-[#5C3A28] transition hover:text-[#EB8A3C]">
             تواصل
           </a>
