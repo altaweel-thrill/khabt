@@ -36,12 +36,12 @@ export default function Navbar({ onLocate }: NavbarProps) {
 
         <div className="flex items-center gap-4">
 
-          <button
-          onClick={onLocate}
+          <a
+          href="https://khabt-tea.com/"
            className="rounded-xl border border-[#8B5A3C] px-4 py-2  text-sm font-semibold text-[#8B5A3C] transition hover:bg-white"
         >
          المتجر الإلكتروني
-        </button>
+        </a>
 
         <button
           onClick={onLocate}
