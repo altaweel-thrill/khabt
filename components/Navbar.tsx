@@ -34,12 +34,22 @@ export default function Navbar({ onLocate }: NavbarProps) {
           </a>
         </nav>
 
+        <div className="flex items-center gap-4">
+
+          <button
+          onClick={onLocate}
+           className="rounded-xl border border-[#8B5A3C] px-4 py-2  text-sm font-semibold text-[#8B5A3C] transition hover:bg-white"
+        >
+         المتجر الإلكتروني
+        </button>
+
         <button
           onClick={onLocate}
           className="rounded-xl bg-[#EB8A3C] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
         >
           حدد موقعي
         </button>
+         </div>
       </div>
     </header>
   )
