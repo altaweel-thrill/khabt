@@ -29,6 +29,7 @@ type LocationItem = {
 export default function HomeClient() {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null)
   const [error, setError] = useState("")
+  const [isLocating, setIsLocating] = useState(false)
   const [locations, setLocations] = useState<LocationItem[]>([])
   const [loadingLocations, setLoadingLocations] = useState(true)
 
@@ -68,16 +69,30 @@ export default function HomeClient() {
       return
     }
 
+    setError("")
+    setIsLocating(true)
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setError("")
+        setIsLocating(false)
         setUserLocation({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         })
       },
-      () => {
-        setError("تعذر الحصول على موقعك الحالي")
+      (locationError) => {
+        setIsLocating(false)
+        setError(
+          locationError.code === locationError.PERMISSION_DENIED
+            ? "يرجى السماح بالوصول إلى موقعك من إعدادات المتصفح"
+            : "تعذر الحصول على موقعك الحالي"
+        )
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000,
       }
     )
   }
@@ -141,6 +156,7 @@ export default function HomeClient() {
           <Map
             userLocation={userLocation}
             onLocate={requestUserLocation}
+            isLocating={isLocating}
           />
         </div>
       </section>

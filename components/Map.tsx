@@ -8,6 +8,7 @@ import {
   useJsApiLoader,
 } from "@react-google-maps/api"
 import { collection, getDocs } from "firebase/firestore"
+import { LoaderCircle, LocateFixed } from "lucide-react"
 
 import { db } from "@/lib/firebase"
 import { haversineDistance } from "@/lib/distance"
@@ -21,6 +22,7 @@ type UserLocation = {
 type MapProps = {
   userLocation: UserLocation | null
   onLocate: () => void
+  isLocating?: boolean
 }
 
 type LocationItem = {
@@ -32,7 +34,7 @@ type LocationItem = {
   lng: number
 }
 
-export default function Map({ userLocation, onLocate }: MapProps) {
+export default function Map({ userLocation, onLocate, isLocating = false }: MapProps) {
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
   })
@@ -40,6 +42,7 @@ export default function Map({ userLocation, onLocate }: MapProps) {
   const [locations, setLocations] = useState<LocationItem[]>([])
   const [selectedLocation, setSelectedLocation] = useState<LocationItem | null>(null)
   const [loadingBranches, setLoadingBranches] = useState(true)
+  const [map, setMap] = useState<google.maps.Map | null>(null)
 
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
@@ -132,78 +135,111 @@ export default function Map({ userLocation, onLocate }: MapProps) {
 
   const mapCenter = userLocation || defaultCenter
 
+  const centerOnUser = () => {
+    if (!userLocation || !map) {
+      onLocate()
+      return
+    }
+
+    map.panTo(userLocation)
+    map.setZoom(Math.max(map.getZoom() ?? 10, 15))
+  }
+
+  useEffect(() => {
+    if (!userLocation || !map) return
+
+    map.panTo(userLocation)
+    map.setZoom(15)
+  }, [map, userLocation])
+
   if (!isLoaded) {
     return <div className="text-lg">جاري تحميل الخريطة...</div>
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="relative overflow-hidden rounded-2xl border border-[#eadfd7] bg-[#f7f2ee]">
         <button
-          onClick={onLocate}
-          className="rounded-xl bg-[#EB8A3C] px-5 py-3 font-semibold text-white transition hover:opacity-90"
+          type="button"
+          onClick={centerOnUser}
+          disabled={isLocating}
+          aria-label={isLocating ? "جاري تحديد موقعك" : "توسيط الخريطة على موقعي"}
+          className="absolute right-3 top-3 z-10 flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-[#dcc9bb] bg-white px-4 py-2.5 font-semibold text-[#5C3A28] shadow-sm transition-colors duration-200 hover:bg-[#FFF7F1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#EB8A3C] disabled:cursor-wait disabled:opacity-70 md:right-4 md:top-4"
         >
-          حدد موقعي
+          {isLocating ? (
+            <LoaderCircle aria-hidden="true" className="size-5 animate-spin text-[#EB8A3C]" />
+          ) : (
+            <LocateFixed aria-hidden="true" className="size-5 text-[#EB8A3C]" />
+          )}
+          <span>{isLocating ? "جاري التحديد..." : "توسيط موقعي"}</span>
         </button>
+
+        <GoogleMap
+          mapContainerStyle={mapContainerStyle}
+          center={mapCenter}
+          zoom={10}
+          onLoad={setMap}
+          onUnmount={() => setMap(null)}
+          options={{
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false,
+            zoomControl: true,
+          }}
+        >
+          {locations.map((location) => (
+            <Marker
+              key={location.id}
+              position={{ lat: location.lat, lng: location.lng }}
+              onClick={() => setSelectedLocation(location)}
+              icon={{
+                url: "/logo-marker.png",
+                scaledSize: new window.google.maps.Size(30, 30),
+                anchor: new window.google.maps.Point(15, 15),
+              }}
+            />
+          ))}
+
+          {userLocation && (
+            <Marker
+              position={userLocation}
+              label="أنت"
+              icon={{
+                path: window.google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: "#2563EB",
+                fillOpacity: 1,
+                strokeColor: "#FFFFFF",
+                strokeWeight: 3,
+              }}
+            />
+          )}
+
+          {selectedLocation && (
+            <InfoWindow
+              position={{ lat: selectedLocation.lat, lng: selectedLocation.lng }}
+              onCloseClick={() => setSelectedLocation(null)}
+            >
+              <div className="max-w-[220px] text-right">
+                <h3 className="mb-1 text-base font-bold">{selectedLocation.name}</h3>
+
+                <p className="mb-3 text-sm">
+                  {selectedLocation.address || selectedLocation.city || "بدون عنوان"}
+                </p>
+
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${selectedLocation.lat},${selectedLocation.lng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block rounded-lg bg-[#EB8A3C] px-3 py-2 text-sm text-white"
+                >
+                  الاتجاهات
+                </a>
+              </div>
+            </InfoWindow>
+          )}
+        </GoogleMap>
       </div>
-
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        center={mapCenter}
-        zoom={10}
-      >
-        {locations.map((location) => (
-          <Marker
-            key={location.id}
-            position={{ lat: location.lat, lng: location.lng }}
-            onClick={() => setSelectedLocation(location)}
-            icon={{
-              url: "/logo-marker.png",
-              scaledSize: new window.google.maps.Size(30, 30),
-              anchor: new window.google.maps.Point(15, 15),
-            }}
-          />
-        ))}
-
-        {userLocation && (
-          <Marker
-            position={userLocation}
-            label="أنت"
-            icon={{
-              path: window.google.maps.SymbolPath.CIRCLE,
-              scale: 8,
-              fillColor: "#2563EB",
-              fillOpacity: 1,
-              strokeColor: "#FFFFFF",
-              strokeWeight: 3,
-            }}
-          />
-        )}
-
-        {selectedLocation && (
-          <InfoWindow
-            position={{ lat: selectedLocation.lat, lng: selectedLocation.lng }}
-            onCloseClick={() => setSelectedLocation(null)}
-          >
-            <div className="max-w-[220px] text-right">
-              <h3 className="mb-1 text-base font-bold">{selectedLocation.name}</h3>
-
-              <p className="mb-3 text-sm">
-                {selectedLocation.address || selectedLocation.city || "بدون عنوان"}
-              </p>
-
-              <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${selectedLocation.lat},${selectedLocation.lng}`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-block rounded-lg bg-[#EB8A3C] px-3 py-2 text-sm text-white"
-              >
-                الاتجاهات
-              </a>
-            </div>
-          </InfoWindow>
-        )}
-      </GoogleMap>
 
       <div id="locations" className="rounded-2xl border border-[#eadfd7] bg-white p-5">
         <h3 className="mb-4 text-right text-xl font-bold text-[#5C3A28]">
