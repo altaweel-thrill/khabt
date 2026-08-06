@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   GoogleMap,
   InfoWindow,
@@ -8,7 +8,6 @@ import {
   useJsApiLoader,
 } from "@react-google-maps/api"
 import { collection, getDocs } from "firebase/firestore"
-import { LoaderCircle, LocateFixed } from "lucide-react"
 
 import { db } from "@/lib/firebase"
 import { haversineDistance } from "@/lib/distance"
@@ -34,6 +33,12 @@ type LocationItem = {
   lng: number
 }
 
+// أيقونة "موقعي" بنفس شكل أيقونة جوجل ماب
+const LOCATE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#666666"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>`
+
+// أيقونة تحميل تدور أثناء تحديد الموقع
+const SPINNER_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666666" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite"/></path></svg>`
+
 export default function Map({ userLocation, onLocate, isLocating = false }: MapProps) {
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "",
@@ -46,6 +51,19 @@ export default function Map({ userLocation, onLocate, isLocating = false }: MapP
 
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
+
+  // refs عشان الـ click handler حق الزر يقرأ أحدث القيم دائماً
+  const userLocationRef = useRef(userLocation)
+  const onLocateRef = useRef(onLocate)
+  const locateButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  useEffect(() => {
+    userLocationRef.current = userLocation
+  }, [userLocation])
+
+  useEffect(() => {
+    onLocateRef.current = onLocate
+  }, [onLocate])
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -75,6 +93,70 @@ export default function Map({ userLocation, onLocate, isLocating = false }: MapP
 
     fetchBranches()
   }, [])
+
+  // إنشاء زر "موقعي" كعنصر تحكم أصلي داخل الخريطة (مثل أزرار جوجل)
+  useEffect(() => {
+    if (!map) return
+
+    const button = document.createElement("button")
+    button.type = "button"
+    button.title = "إظهار موقعي"
+    button.setAttribute("aria-label", "توسيط الخريطة على موقعي")
+    button.style.cssText = [
+      "background: #fff",
+      "border: none",
+      "border-radius: 2px",
+      "box-shadow: 0 1px 4px rgba(0,0,0,.3)",
+      "cursor: pointer",
+      "width: 40px",
+      "height: 40px",
+      "margin: 0 10px 10px 10px",
+      "padding: 0",
+      "display: flex",
+      "align-items: center",
+      "justify-content: center",
+    ].join(";")
+    button.innerHTML = LOCATE_ICON
+
+    button.addEventListener("click", () => {
+      const loc = userLocationRef.current
+
+      if (!loc) {
+        onLocateRef.current()
+        return
+      }
+
+      map.panTo(loc)
+      map.setZoom(Math.max(map.getZoom() ?? 10, 15))
+    })
+
+    locateButtonRef.current = button
+    map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(button)
+
+    return () => {
+      const controls = map.controls[google.maps.ControlPosition.RIGHT_BOTTOM]
+
+      for (let i = controls.getLength() - 1; i >= 0; i--) {
+        if (controls.getAt(i) === button) {
+          controls.removeAt(i)
+          break
+        }
+      }
+
+      locateButtonRef.current = null
+    }
+  }, [map])
+
+  // تبديل الأيقونة أثناء تحديد الموقع
+  useEffect(() => {
+    const button = locateButtonRef.current
+    if (!button) return
+
+    button.innerHTML = isLocating ? SPINNER_ICON : LOCATE_ICON
+    button.disabled = isLocating
+    button.style.cursor = isLocating ? "wait" : "pointer"
+    button.title = isLocating ? "جاري تحديد موقعك" : "إظهار موقعي"
+  }, [isLocating, map])
 
   const nearestLocation = useMemo(() => {
     if (!userLocation || locations.length === 0) return null
@@ -135,16 +217,6 @@ export default function Map({ userLocation, onLocate, isLocating = false }: MapP
 
   const mapCenter = userLocation || defaultCenter
 
-  const centerOnUser = () => {
-    if (!userLocation || !map) {
-      onLocate()
-      return
-    }
-
-    map.panTo(userLocation)
-    map.setZoom(Math.max(map.getZoom() ?? 10, 15))
-  }
-
   useEffect(() => {
     if (!userLocation || !map) return
 
@@ -159,21 +231,6 @@ export default function Map({ userLocation, onLocate, isLocating = false }: MapP
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-2xl border border-[#eadfd7] bg-[#f7f2ee]">
-        <button
-          type="button"
-          onClick={centerOnUser}
-          disabled={isLocating}
-          aria-label={isLocating ? "جاري تحديد موقعك" : "توسيط الخريطة على موقعي"}
-          className="absolute right-3 top-3 z-10 flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-[#dcc9bb] bg-white px-4 py-2.5 font-semibold text-[#5C3A28] shadow-sm transition-colors duration-200 hover:bg-[#FFF7F1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#EB8A3C] disabled:cursor-wait disabled:opacity-70 md:right-4 md:top-4"
-        >
-          {isLocating ? (
-            <LoaderCircle aria-hidden="true" className="size-5 animate-spin text-[#EB8A3C]" />
-          ) : (
-            <LocateFixed aria-hidden="true" className="size-5 text-[#EB8A3C]" />
-          )}
-          <span>{isLocating ? "جاري التحديد..." : "توسيط موقعي"}</span>
-        </button>
-
         <GoogleMap
           mapContainerStyle={mapContainerStyle}
           center={mapCenter}
@@ -276,7 +333,7 @@ export default function Map({ userLocation, onLocate, isLocating = false }: MapP
                       <div className="text-right">
                         <h4 className="font-bold text-[#5C3A28]">{location.name}</h4>
                         <p className="text-sm text-gray-600">
-                          {location.city || location.city || "بدون عنوان"}
+                          {location.city || location.address || "بدون عنوان"}
                         </p>
 
                         {distance !== null && (
